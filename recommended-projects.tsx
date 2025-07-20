@@ -33,106 +33,39 @@ export default function RecommendedProjects({
 }: RecommendedProjectsProps) {
   const [projects, setProjects] = useState<ProjectRecommendation[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const allSkillsAndInterests = [...new Set([...resumeSkills, ...scholarInterests])]
 
-  const generateRecommendations = async () => {
+  const fetchRecommendations = async () => {
     setIsLoading(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // Mock project recommendations based on skills and interests
-    const mockProjects: ProjectRecommendation[] = [
-      {
-        id: "1",
-        title: "AI-Powered Research Paper Summarizer",
-        description:
-          "Build a web application that uses natural language processing to automatically generate concise summaries of academic papers. Perfect for researchers who need to quickly review literature.",
-        matchingTags: ["Machine Learning", "Natural Language Processing", "Python", "React"],
-        difficulty: "Advanced",
-        estimatedTime: "6-8 weeks",
-        collaborators: 3,
-        githubUrl: "#",
-        demoUrl: "#",
-        matchScore: 95,
-      },
-      {
-        id: "2",
-        title: "Interactive Data Visualization Dashboard",
-        description:
-          "Create a responsive dashboard for visualizing complex datasets with interactive charts and real-time updates. Great for showcasing data analysis skills.",
-        matchingTags: ["JavaScript", "React", "Node.js", "SQL"],
-        difficulty: "Intermediate",
-        estimatedTime: "4-5 weeks",
-        collaborators: 2,
-        githubUrl: "#",
-        demoUrl: "#",
-        matchScore: 88,
-      },
-      {
-        id: "3",
-        title: "Computer Vision Object Detection App",
-        description:
-          "Develop a mobile-friendly web app that can detect and classify objects in real-time using your device's camera. Implement using modern computer vision techniques.",
-        matchingTags: ["Computer Vision", "Python", "Deep Learning", "JavaScript"],
-        difficulty: "Advanced",
-        estimatedTime: "5-7 weeks",
-        collaborators: 4,
-        githubUrl: "#",
-        matchScore: 92,
-      },
-      {
-        id: "4",
-        title: "Collaborative Code Review Platform",
-        description:
-          "Build a platform where developers can submit code for peer review, with features like syntax highlighting, commenting, and automated code quality checks.",
-        matchingTags: ["Node.js", "React", "Git", "Docker"],
-        difficulty: "Intermediate",
-        estimatedTime: "3-4 weeks",
-        collaborators: 2,
-        githubUrl: "#",
-        demoUrl: "#",
-        matchScore: 85,
-      },
-      {
-        id: "5",
-        title: "Neural Network Visualization Tool",
-        description:
-          "Create an educational tool that visualizes how neural networks learn and make decisions. Include interactive elements to adjust parameters and see real-time changes.",
-        matchingTags: ["Neural Networks", "JavaScript", "Machine Learning", "Python"],
-        difficulty: "Advanced",
-        estimatedTime: "4-6 weeks",
-        collaborators: 1,
-        githubUrl: "#",
-        matchScore: 90,
-      },
-    ]
-
-    // Filter projects based on matching skills/interests
-    const relevantProjects = mockProjects.filter((project) =>
-      project.matchingTags.some((tag) =>
-        allSkillsAndInterests.some(
-          (skill) => skill.toLowerCase().includes(tag.toLowerCase()) || tag.toLowerCase().includes(skill.toLowerCase()),
-        ),
-      ),
-    )
-
-    // Sort by match score
-    const sortedProjects = relevantProjects.sort((a, b) => b.matchScore - a.matchScore)
-
-    setProjects(sortedProjects)
-    setIsLoading(false)
+    setError(null)
+    try {
+      const res = await fetch("/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skills: resumeSkills, interests: scholarInterests }),
+      })
+      if (!res.ok) throw new Error("Failed to fetch recommendations")
+      const data = await res.json()
+      setProjects(data.projects || [])
+    } catch (err: any) {
+      setError(err.message || "Unknown error")
+      setProjects([])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   useEffect(() => {
     if (allSkillsAndInterests.length > 0) {
-      generateRecommendations()
+      fetchRecommendations()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeSkills, scholarInterests])
 
   const handleRefresh = () => {
-    generateRecommendations()
+    fetchRecommendations()
     onRefresh?.()
   }
 
@@ -185,6 +118,12 @@ export default function RecommendedProjects({
         </Button>
       </div>
 
+      {error && (
+        <div className="text-red-600 bg-red-50 border border-red-200 rounded p-4">
+          Error: {error}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
@@ -212,22 +151,16 @@ export default function RecommendedProjects({
           {projects.map((project) => (
             <Card
               key={project.id}
-              className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md hover:shadow-xl hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-l-4 border-l-gradient-to-b border-l-blue-400"
-              style={{
-                borderLeftColor:
-                  project.matchScore >= 90 ? "#10b981" : project.matchScore >= 80 ? "#f59e0b" : "#6366f1",
-              }}
+              className="group border border-gray-200 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-0 hover:-translate-y-1"
             >
-              <CardHeader className="space-y-3">
+              <CardHeader className="space-y-3 pb-2 bg-white rounded-t-2xl">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1 flex-1">
-                    <CardTitle className="text-lg leading-tight group-hover:text-primary transition-colors">
+                    <CardTitle className="text-base font-semibold leading-tight group-hover:text-primary transition-colors">
                       {project.title}
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={`text-xs ${getDifficultyColor(project.difficulty)}`}>
-                        {project.difficulty}
-                      </Badge>
+                      <Badge variant="outline" className={`text-xs ${getDifficultyColor(project.difficulty)} border-none px-2 py-0.5 rounded-full font-medium`}>{project.difficulty}</Badge>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Star className="h-3 w-3 fill-current text-yellow-400" />
                         <span className="font-medium text-yellow-600">{project.matchScore}% match</span>
@@ -237,8 +170,8 @@ export default function RecommendedProjects({
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground leading-relaxed">{project.description}</p>
+              <CardContent className="space-y-4 pt-0 pb-4 px-4">
+                <p className="text-xs text-muted-foreground leading-relaxed">{project.description}</p>
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -260,7 +193,7 @@ export default function RecommendedProjects({
                     <div className="text-xs font-medium text-muted-foreground">Matching Skills:</div>
                     <div className="flex flex-wrap gap-1">
                       {project.matchingTags.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs px-2 py-0.5">
+                        <Badge key={index} variant="secondary" className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 border-blue-100 rounded-full font-normal shadow-none">
                           {tag}
                         </Badge>
                       ))}
@@ -268,27 +201,24 @@ export default function RecommendedProjects({
                   </div>
 
                   {(project.githubUrl || project.demoUrl) && (
-                    <>
-                      <Separator />
-                      <div className="flex gap-2">
-                        {project.githubUrl && (
-                          <Button variant="outline" size="sm" className="flex-1 text-xs h-8 bg-transparent" asChild>
-                            <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="mr-1 h-3 w-3" />
-                              GitHub
-                            </a>
-                          </Button>
-                        )}
-                        {project.demoUrl && (
-                          <Button variant="outline" size="sm" className="flex-1 text-xs h-8 bg-transparent" asChild>
-                            <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="mr-1 h-3 w-3" />
-                              Demo
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </>
+                    <div className="flex gap-2 pt-2">
+                      {project.githubUrl && (
+                        <Button variant="outline" size="sm" className="flex-1 text-xs h-8 bg-gray-50 border border-gray-200 rounded-lg" asChild>
+                          <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-1 h-3 w-3" />
+                            GitHub
+                          </a>
+                        </Button>
+                      )}
+                      {project.demoUrl && (
+                        <Button variant="outline" size="sm" className="flex-1 text-xs h-8 bg-gray-50 border border-gray-200 rounded-lg" asChild>
+                          <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-1 h-3 w-3" />
+                            Demo
+                          </a>
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               </CardContent>
